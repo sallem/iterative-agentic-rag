@@ -3,13 +3,15 @@ import { embedFiles } from './embedFiles';
 
 async function initialize() {
     console.log('Starting initialization process...');
-    
-    console.log('\n1. Fetching Wikipedia pages...');
-    await getWikiPages();
-    
+
+    if (process.env.DOWNLOAD_WIKIPEDIA === 'true') {
+        console.log('\n1. Fetching Wikipedia pages...');
+        await getWikiPages();
+    }
+
     console.log('\n2. Embedding files...');
     await embedFiles();
-    
+
     console.log('\nInitialization complete!');
 }
 
