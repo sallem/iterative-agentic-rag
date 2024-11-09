@@ -65,7 +65,7 @@ export class NvidiaReranker implements BaseNodePostprocessor {
             }))
 
         } catch (error) {
-            console.error("Error in Nvidia reranking:", error);
+            if (process.env.DEBUG === 'true') console.error("Error in Nvidia reranking:", error, nodes, query);
             // Return original nodes with default scores if reranking fails
             return nodes.map(nodeWithScore => ({
                 node: nodeWithScore.node,
