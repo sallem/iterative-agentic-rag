@@ -21,9 +21,25 @@ Launch Qdrant vector store:
 docker run -p 6333:6333 -d  -v $(pwd)/qdrant_storage:/qdrant/storage qdrant/qdrant:latest
 ```
 
+Install dependencies:
+```
+npm install
+```
+
+
+Install dev dependencies:
+```
+npm install -D
+```
+
 Init data, this will download wikipedia data needed for evaluation.json tests and then embed the files
 ```
 npm run init
+```
+
+If you want to download the wikipedia data from Google RAG test dataset :
+```
+DOWNLOAD_WIKIPEDIA=true npm run init
 ```
 
 Finally, go test the RAG :
@@ -32,6 +48,15 @@ npx ts-node src/index.ts
 ```
 
 
+## Demonstration product : The Writer Bot
+
+For a simple test, you can keep the documents downloaded by the `init` script and run the Writer Bot :
+
+`npx ts-node src/product/writer.ts`
+
+This will use the Iterative Agentic RAG to generate ideas of stories based on documents put into the `input_wikipedia` folder.
+
+This should generate a story about The 15th president of the USA, Hariett Lane, etc.
 
 ## ⚙️ Principles
 
@@ -39,14 +64,13 @@ In the schema below, we see the 10 steps from the initial documents embedding to
 
 ![Schema](./img/schema.png)
 
-1. Initial document embedding. Chunks size must be small : 500 characters with 80 characters window show a good performance. This will ne be used to retrieve data.
+1. Initial document embedding. Chunks size must be small : 2000 characters with 100 characters window show a good performance. This will ne be used to retrieve data.
 2. Let's now go to the main engine `Step engine`. We send the user query to the IterativeAgenticRAG agent, it will take care of everything. This agent is a JavaScript class that will analyze, simplify, find data and answer to the question.
 3. The analyze phase aims to find the next data you would need to answer to the question. For example, "What is the name of the first lady of the 15th president of the USA ?", you will need to find who is the 15th POTUS, then, find the name of his wife or first lady. This step take the query and can also return the answer directly if the query is simple enough.
 4. We need to find the next needed data, for example the name of the 15th POTUS. We will ask this to the `Data Finder` component. If the analyze found the answer, we just return the answer.
 5. Remember step 1, we embeded the files of our knowledge base. We will use them to find a sublist of file where we could find the data we need.
 6. With the sublist of file, we will read them one by one, asking a model to extract informations in relation with the data we are looking for.
-7. When we collect more than a limit number of informations, we consider we have enough informations to give to the `Step Engine`
-8. We have data and a complex query, let's rephrase the query to simplify it. For exemple, we found the name of the 15th POTUS, we rephrase the query this way : "What is the name of the first lady of James Buchanan". This is way more simple to understand right ? The engine will launch another loop till it reaches a loop limit number. When the query is still too complex and the loop limit number is reached, whe ask a model to try to answer it for the last time and return its answer.
+7. We have data and a complex query, let's rephrase the query to simplify it. For exemple, we found the name of the 15th POTUS, we rephrase the query this way : "What is the name of the first lady of James Buchanan". This is way more simple to understand right ? The engine will launch another loop till it reaches a loop limit number. When the query is still too complex and the loop limit number is reached, whe ask a model to try to answer it for the last time and return its answer.
 
 ## ⁉️ Why ?
 
@@ -113,5 +137,6 @@ This work is just the beginning, all elements are Ok and the quality can be impr
 * NVIDIA API showed some bugs on some models
 * LlamaIndex TS is less mature than Python library. The NVIDIA LLM/Reranker/Embeddings are not supported yet and I had to code some classes to use NVIDIA products with LlamaIndex. Not prefect but it was supplemntary development. I also used the react agent of LlamaIndex as a base for the project's agent, using the llamaindex agent template to run it.
 * Such a project needs to test a lot of approaches, embed a lot of documents, multiple times. The quantity of credits available on the API platform is not sufficient for a RAG development. I had to use a local embeddings service (Ollama) to keep some credits for the reasonning and reranking parts.
+* API can be slow, it could be better by reducing the "await" between calls. I put this await in order to respect rate limits. The slowliness is not a problem for our use case as we want to obtain a good quality of answer. The use case is automatisation, not real-time queries.
 * I was supposed to use NEMO curator (find documents on the web instead of wikipedia tool) and GuardRails (Add some guardrails for the answer and eventually during the process in order to keep control on facts found) but I would have need 1 or 2 more weeks to make it.
 * It was funny though ...
