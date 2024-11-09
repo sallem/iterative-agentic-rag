@@ -113,5 +113,5 @@ This work is just the beginning, all elements are Ok and the quality can be impr
 * NVIDIA API showed some bugs on some models
 * LlamaIndex TS is less mature than Python library. The NVIDIA LLM/Reranker/Embeddings are not supported yet and I had to code some classes to use NVIDIA products with LlamaIndex. Not prefect but it was supplemntary development. I also used the react agent of LlamaIndex as a base for the project's agent, using the llamaindex agent template to run it.
 * Such a project needs to test a lot of approaches, embed a lot of documents, multiple times. The quantity of credits available on the API platform is not sufficient for a RAG development. I had to use a local embeddings service (Ollama) to keep some credits for the reasonning and reranking parts.
-* I was supposed to use NEMO curator and GuardRails but I would have need 1 or 2 more weeks to make it.
+* I was supposed to use NEMO curator (find documents on the web instead of wikipedia tool) and GuardRails (Add some guardrails for the answer and eventually during the process in order to keep control on facts found) but I would have need 1 or 2 more weeks to make it.
 * It was funny though ...
