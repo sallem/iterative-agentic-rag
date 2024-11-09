@@ -1,12 +1,15 @@
 
 import fs from "fs/promises";
 import storage from "node-persist";
+import { jsonrepair } from 'jsonrepair'
 
 import removeMd from 'remove-markdown';
 
 import OpenAI from "openai";
 import { LLM } from "llamaindex";
 import { CONFIG } from "../config";
+
+import { iterativeRAGAgent } from './loadAgent';
 
 const llm = new OpenAI({
     apiKey: CONFIG.llm.nvidiaNimApiKey ?? "",
@@ -40,12 +43,6 @@ async function getShortSummary(article: string) {
     // Remove MD links and tables :
     content = removeMd(content);
 
-
-    // content = content.replace(/\.{3,}/g, ".").replace(/\-{3,}/g, "-");
-    // Remove lines starting with "|"
-    // content = content.split("\n").filter(line => !line.startsWith("|")).join("\n");
-
-
     // Get the first 2000 characters of the article :
     content = content.substring(0, 3000);
     // Cut the last sentence if it is incomplete, get last index of "."
@@ -55,7 +52,6 @@ async function getShortSummary(article: string) {
     }
 
     // Use LLM to generate a short summary of the article :
-
     const summary = await llmComplete(`Generate a short summary of the following article : ${content}`);
 
     // Cache it :
@@ -66,86 +62,55 @@ async function getShortSummary(article: string) {
 }
 
 
-async function getListOfCommonElements(shortSummaries: { [key: string]: string }) {
-
-    console.log("Short summaries :", shortSummaries);
-
-    // For each article :
-    // Get list of summaries of other articles :
-    const resCommonElements: { [key: string]: string } = {};
+async function getListOfCommonElements(shortSummaries: { [key: string]: string[] }) {
 
     for (const article in shortSummaries) {
 
-        console.log("Article :", article);
-
         const otherArticles = Object.keys(shortSummaries).filter(summary => summary !== article);
-
-        console.log("Other otherArticles :", otherArticles);
 
         // Get common elements :
         for (const otherArticle of otherArticles) {
-
-            if (await storage.getItem(`common_elements_${article}_${otherArticle}`)) {
-                resCommonElements[article + "-" + otherArticle] = await storage.getItem(`common_elements_${article}_${otherArticle}`);
-                continue;
-            }
-
-            console.log("Other otherArticle :", otherArticle);
 
             const commonElements = await llmComplete(`Find common elements between the following summaries : 
 <first_summary>${shortSummaries[article]}</first_summary>
 <other_summary>${shortSummaries[otherArticle]}</other_summary>
 
-Answer with a list of elements, separated by commas. Give some context for each element, with entities informations.
+Based on these common elements, generate 6-8 specific questions that will help uncover amusing, surprising, or intriguing details.
+Your questions should focus on:
+- Unexpected connections or coincidences
+- Humorous mistakes or mishaps
+- Surprising origins or evolution
+- Quirky historical details
+- Ironic twists
+- Fun statistics or numbers
+- Strange human behaviors or decisions
+
+Answer with a list of questions in a JSON array of string. Answer only with a valid JSON.
 `);
-            console.log("Common elements :", commonElements);
 
-            // Cache it :
-            await storage.setItem(`common_elements_${article}_${otherArticle}`, commonElements);
+            let jsonString = commonElements?.substring(commonElements?.indexOf("[")).replace(/\n/g, "").trim();
+            // Clean stirng to get only JSON array : remove all after ]
+            jsonString = jsonString?.substring(0, jsonString?.indexOf("]") + 1);
 
-            resCommonElements[article + "-" + otherArticle] = commonElements ?? "";
+            try {
+
+                jsonString = jsonrepair(jsonString ?? "[]");
+
+                await storage.setItem(`common_elements_${article}_${otherArticle}`, commonElements);
+                // resCommonElements[article + "-" + otherArticle] = JSON.parse(commonElements) ?? [];
+
+                return JSON.parse(jsonString);
+
+            } catch (err) {
+                console.error(`Error parsing JSON string -${jsonString}-:`, err);
+            }
         }
     }
-
-    return resCommonElements;
 }
 
 
-async function getStoryLines(articles: string[], commonElements: { [key: string]: string }) {
 
-    console.log("Prompt:", `
-You are an influencer on Twitter. You like to write short stories based on historical facts.
-Write the plan of an anecdote story which could be based on common elements : 
-        
-<common_elements>
-${Object.values(commonElements).join("\n")}
-</common_elements>
-
-Answer with the plan of the story in maximum 5 bullet points. This should be the main points of the story in the order they should be written.
-Consider using the common elements to write a story that is engaging and interesting. The story should not take only one article as a source.
-`)
-
-
-    // Write the plan of a story which could be based on common elements :
-    const storyPlan = await llmComplete(`
-You are an influencer on Twitter. You like to write short stories based on historical facts.
-Write the plan of an anecdote story which could be based on common elements : 
-        
-<common_elements>
-${Object.values(commonElements).join("\n")}
-</common_elements>
-
-Answer with the plan of the story in maximum 5 bullet points. This should be the main points of the story in the order they should be written.
-Consider using the common elements to write a story that is engaging and interesting. The story should not take only one article as a source.
-`);
-
-
-    console.log("Story plan :", storyPlan);
-
-    return storyPlan;
-}
-
-async function findCommonElements(articles: string[]) {
+async function findIdea(articles: string[]): Promise<string> {
 
     // For each article, make short summary :
     const shortSummaries = (await Promise.all(articles.map(article => getShortSummary(article)))).reduce((acc, curr) => {
@@ -153,51 +118,27 @@ async function findCommonElements(articles: string[]) {
     }, {});
 
     // For each each article, find elements in the article that could be in relation with the other articles
-    const commonElements = await getListOfCommonElements(shortSummaries);
+    const arrCommonElements = await getListOfCommonElements(shortSummaries);
 
-    // For each article, extract a long summary of the article, mentioning the elements found in the previous step
-
-    const storyLines = await getStoryLines(articles, commonElements);
-
-    // Return the list of articles with their short and long summaries
-
-    return articles.map((article) => {
-        return {
-            articleName: article,
-            shortSummary: "",
-            longSummary: ""
-        }
-    });
+    // Go with question 1 :
+    // User can select the best proposition :
+    const question1 = arrCommonElements[0];
+    const answer1 = await iterativeRAGAgent.chat({ message: question1 });
+    return answer1.message.content.toString();
 }
+
 
 
 (async () => {
 
     await storage.init();
-    // await storage.clear()
 
     // Step 1 : Select random wikipedia articles
-    // TODO: For the moment, let's just read files in ../input_wikipedia
-    // const articles = await fs.readdir("./input_wikipedia");
-    const articles = [
-        'Harriet_Lane.txt',
-        'Punxsutawney_Phil.txt',
-    ]
+    const articles = await fs.readdir("./input_wikipedia");
 
-    // Step 2 : Find common elements between the articles
-    const commonElements = await findCommonElements(articles);
+    // Let's find ideas from Wikipedia articles :
+    const ideas = await findIdea(articles);
 
-
-    // Step 3 : Generate a list of points of interest
-
-
-    // Step 4 : Use the iterative RAG to collect informations about each point of interest
-
-
-    // Step 5 : Write a story divided into paragraphs, each paragraph focusing on a different point of interest
-
-
-    // Show the story :
-
+    console.log("Ideas :", ideas);
 
 })();
