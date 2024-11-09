@@ -35,7 +35,7 @@ const vectorStore = new QdrantVectorStore({
 let reranker: NvidiaReranker | null = null;
 if (CONFIG.nvidia.rerankerApiKey) {
 
-    console.log("Using reranker : ", CONFIG.nvidia.rerankerModel)
+    // console.log("Using reranker : ", CONFIG.nvidia.rerankerModel)
     reranker = new NvidiaReranker({
         apiKey: CONFIG.nvidia.rerankerApiKey,
         model: CONFIG.nvidia.rerankerModel || undefined
