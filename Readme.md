@@ -58,7 +58,7 @@ Second assertion : Asking an agent to extract specific data is easier for small/
 
 This architecture has been developped for the NVIDIA Developper Contest (https://developer.nvidia.com/llamaindex-developer-contest) with LlamaIndex.
 
-We chose the [LlamaIndex](https://github.com/run-llama/LlamaIndexTS) Typescript version in order to test the TS version of the framework. This is really easy to use and it makes it easier to integrate LLM component into web infrastructures.
+We chose the [LlamaIndex](https://github.com/run-llama/LlamaIndexTS) Typescript version in order to test the TS version of the framework. This is really easy to use and it makes it easier to integrate LLM component into existing web infrastructures.
 
 
 ## 🔎 Quality evaluation
@@ -73,7 +73,9 @@ The development has been evaluated with the first queries and this project could
 * The NVIDIA NIM service is great but working on this project consumed A LOT of credits. Then, it has been chosen to make first tests with different services that makes the source code more "meta" level. LlamaIndex is made to be able to use LLMs like Grok, Ollama, NVIDIA, etc. The Iterative Agentic RAG is a class using LlamaIndex abstract classes to be able to work with different LLMs/Embeddings/Rerankers, etc.
 * LlamaIndex `SentenceSplitter` failed with a bug about "max stack size exceeded" when the document is too long, so I used a simpler function to split the texts.
 * Agentic data extraction is slow and energy consumer. We should add data into a vector store in order to cache data in a database without having to call a model again.
-
+* During development the NVIDIA API used to return 4XX errors on models. 404 error on embedding API, "no body" error on some models, etc. For these reasons, I used Ollama embeddings as they are locally running and their size and quality are smaller than NVIDIA's. The quality of the results should then be greater with NVIDIA API.
+* For NVIDIA contest, I keep most of the example with NVIDIA NIM API. But the Iterative Agentic RAG is meant to be usable with any embedding, LLM, Reranker supported by LlamaIndex 👀
+* It is about 13 days of development since I started this contest. The model evaluation, prompt engineering took a lot of time. I really improved my methodology : First make spikes/POCs in order to test different approaches. Make spikes to test prompts and models. Then go for the real product and make the end-to-end functions/classes. Then improve the prompts during testing. LLMs are great, but we need to learn how to talk to them 😅
 
 
 ## 📁 Files
@@ -94,10 +96,10 @@ The development has been evaluated with the first queries and this project could
 - Minimal model : `llama3.1:70b` for minimal quality, 8b would make quality too low to be usable. First tests on `llama-3.2-90b-text-preview`.
 - The simplest vector store used with LlamaIndex with TypeScript is QDrant. You shall launch a local QDrant server with : `docker run -p 6333:6333 qdrant/qdrant`
 
+
 ## 😡 Criticism
 
 This work is just the beginning, all elements are Ok and the quality can be improved :
 
 - Summaries support : Should be able to extract summaries from large chunks instead of "short facts". Would be important to handle qualitative searches on the corpus
-- File reading optimization : When a large file matches with the sub-query, the bot reads the whole file. It takes time and tokens. Would be good to limit the reading to the sections containing related informations. Why not using large chunks and read them directly.
 - Test more questions from the Google RAG benchmark dataset which is pure evil for RAGs 😅

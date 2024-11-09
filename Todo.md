@@ -8,8 +8,12 @@
   - [X] Create embeddings class
 - [X] Read matching X chunks instead of reading the file
 - [X] Find multiple steps' data in one step
-- [ ] Add real world application example : A story writer combining multiple wikipedia pages
-- [ ] Improve documentation of the source code / logger improvements
+- [X] Add real world application example : A story writer combining multiple wikipedia pages
+- [X] Improve documentation of the source code / logger improvements (show log only on DEBUG=true)
+- [ ] Demo video + Transcript / Video creation
+- [ ] Post X post : RAG dev community + LinkedIN post to promote the repository
+
+Elapsed time of development : 13 full days
 
 -> Submit project to NVIDIA 🎉
 

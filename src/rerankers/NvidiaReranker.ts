@@ -56,7 +56,7 @@ export class NvidiaReranker implements BaseNodePostprocessor {
 
             const result = await response.json() as NvidiaRerankerResponse;
 
-            console.log("Reranking result : ", result)
+            // console.log("Reranking result : ", result)
 
             // Convert the reranking scores to NodeWithScore objects
             return result.rankings.map((ranking: { index: number, logit: number }) => ({

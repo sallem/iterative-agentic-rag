@@ -1,60 +1,31 @@
-
 import {
     type AgentParamsBase,
     AgentRunner,
     AgentWorker,
-    callTool,
-    consumeAsyncIterable,
-    createReadableStream,
     type TaskHandler,
     validateAgentParams,
 } from "@llamaindex/core/agent";
-import type { JSONObject, JSONValue } from "@llamaindex/core/global";
 import type {
-    BaseTool,
-    ChatMessage,
-    ChatResponse,
-    ChatResponseChunk,
     LLM,
 } from "@llamaindex/core/llms";
 import {
     BaseEmbedding,
 } from "@llamaindex/core/embeddings";
 import OpenAI from 'openai';
-
-import fs from 'fs';
 import { jsonrepair } from 'jsonrepair'
 import { VectorStore, VectorStoreQueryMode, BaseNodePostprocessor, TextNode, VectorStoreQueryResult } from "llamaindex";
-import { QdrantVectorStore } from "llamaindex";
-import { OllamaEmbedding, Settings, Groq } from "llamaindex";
+import { Settings } from "llamaindex";
 import { PROMPTS } from './prompts';
-import { CONFIG } from './config';
-import { splitTextSafely } from './tools/utils';
-import type { MessageContent } from "@llamaindex/core/llms";
 import type { NodeWithScore } from "@llamaindex/core/schema";
-import { embedFiles } from "./scripts/embedFiles";
 
+const DEBUG = process.env.DEBUG === 'true';
 
-// Settings.embedModel = new OllamaEmbedding({ model: CONFIG.embeddings.model });
-// Settings.llm = new Groq({
-//     apiKey: CONFIG.llm.groqApiKey,
-//     model: CONFIG.llm.defaultModel,
-//     topP: 0
-// });
-// const llm_get_data = new Groq({
-//     apiKey: CONFIG.llm.groqApiKey,
-//     model: CONFIG.llm.fastModel,
-//     topP: 0
-// });
-
-// If stores.json does not exist, create it:
-if (!fs.existsSync('stores.json')) {
-    fs.writeFileSync('stores.json', JSON.stringify([]));
+// Replace console.log statements with debug function
+function debug(...args: any[]) {
+    if (DEBUG) {
+        console.log(...args);
+    }
 }
-
-
-
-
 
 //------------------------------------------------------------------------------------------------------------------------
 // Document management
@@ -103,33 +74,16 @@ async function _findDataInEmbeddings(dataNeeded: string, modelData: string, embe
     let dataFound: string[] = []
     for (const node of queryResult.nodes ?? []) {
 
-        const prompt = `
-If the following text :
+        const prompt = PROMPTS.GET_FACTS
+            .replace('_TEXT_', node.toJSON().text)
+            .replace('_DATA_NEEDED_', dataNeeded);
 
-<text>
-${node.toJSON().text}
-</text>
-
-I am looking for informations about "${dataNeeded}".
-
-Extract facts related to this information.
-Each result must be a sentence or assertion of that fact.
-Add context informations and details, like entity which it stands for, geographical informations, temporal informations, dates, etc.
-
-Do not make up informations, only use the informations provided in the text.
-To check the relevance of the fact, ask yourself if this fact could help answering the following question : "${dataNeeded}".
-
-Answer with a JSON array of strings, for example:
-["string1", "string2", "string3"]
-
-Return empty array "[]" if no information is found or if the fact is not relevant to the question.
-`
-
-        // console.log("Prompt llm get facts : ", prompt);
+        debug("Prompt llm get facts : ", prompt);
         const facts = await modelCompletion(prompt, modelData, openAI)
 
-        console.log("Facts for ", dataNeeded, ":", facts.text);
-        console.log("--------------------------------");
+        debug("Facts for ", dataNeeded, ":", facts.text);
+        debug("--------------------------------");
+
         // Clean stirng to get only JSON array : remove all before [ and after ]
         let jsonString = facts.text.substring(facts.text.indexOf("[")).replace(/\n/g, "").trim();
         // Clean stirng to get only JSON array : remove all after ]
@@ -146,7 +100,7 @@ Return empty array "[]" if no information is found or if the fact is not relevan
             // console.error(`Error parsing JSON string -${jsonString}-:`, err);
         }
 
-        console.log("Data found chunk : ", jsonString);
+        debug("Data found chunk : ", jsonString);
 
         if (dataFound.length > 10) {
             break;
@@ -155,12 +109,12 @@ Return empty array "[]" if no information is found or if the fact is not relevan
         }
     }
 
-    console.log("Whole data found : ", dataFound);
+    debug("Whole data found : ", dataFound);
 
     // If a reranker is provided, rerank the data found and get only the relevant ones :
     if (reranker) {
 
-        console.log("Reranking data found : ", dataNeeded, dataFound)
+        debug("Reranking data found : ", dataNeeded, dataFound)
         const nodes: NodeWithScore[] = dataFound.map((item: string) => {
             return {
                 node: new TextNode({ text: item }),
@@ -170,7 +124,7 @@ Return empty array "[]" if no information is found or if the fact is not relevan
 
         // We have only one dataNeeded now, TODO: remove array of dataNeeded
         const rerankedData = await reranker.postprocessNodes(nodes, dataNeeded);
-        console.log("Reranked data found : ", rerankedData)
+        debug("Reranked data found : ", rerankedData)
 
         // Get only when scrore > 0 :
         dataFound = rerankedData.filter((item: NodeWithScore) => item.score && item.score > 0).map((item: NodeWithScore) => item.node.toJSON().text)
@@ -217,6 +171,11 @@ type IterativeRAGAgentParams = AgentParamsBase<LLM> & {
     maxOccurences?: number;
 }
 
+/**
+ * Use AgentRunner from LlamaIndex to run the agent.
+ * This agent will split a given query into smaller or simplier queries and try to find informations to answer the question.
+ * It will do this recursively until it has enough data to answer the question or until a maximum number of occurences is reached.
+ */
 export class IterativeRAGAgent extends AgentRunner<LLM, IterativeRAGAgentStore> {
 
     llmData: LLM;
@@ -286,31 +245,31 @@ export class IterativeRAGAgent extends AgentRunner<LLM, IterativeRAGAgentStore> 
     ) => {
 
         // Do the magic :
-        const { localFilesDir, embedModel, vectorStore, openAI, model, modelData, reranker } = step.context.store;
+        const { embedModel, vectorStore, openAI, model, modelData, reranker } = step.context.store;
         const lastMessage = step.context.store.messages.at(-1)!.content;
         const initialQuestion = lastMessage.toString();
         const question = step.context.store.rephrasedQuery ?? initialQuestion;
 
         // Each step simplifies the query :
-        console.log("")
-        console.log("================================================")
-        console.log("============= Step", step.context.store.remainingOccurences, "===============")
-        console.log("Data collected : ", step.context.store.data);
-        console.log("================================================")
+        debug("")
+        debug("================================================")
+        debug("============= Step", step.context.store.remainingOccurences, "===============")
+        debug("Data collected : ", step.context.store.data);
+        debug("================================================")
 
         // 1. Can I answer this question with the available data ? Or Give me the data I need to answer this question.
         const prompt1 = PROMPTS.IDENTIFY_NEEDED_DATA
             .replace('_QUESTION_', question)
             .replace('_DATA_', step.context.store.data.length > 0 ? step.context.store.data.map((item: string) => "- " + item).join("\n") + "\n" : "- No data collected yet");
 
-        console.log("Initial step prompt : ", prompt1);
+        debug("Initial step prompt : ", prompt1);
 
 
         // const prompt1Result = await llmCompletion(prompt1, llm);
         const prompt1Result = await modelCompletion(prompt1, model, openAI);
         const query1 = prompt1Result.text
 
-        console.log("Step 1 : Answer or data needed (str): ", query1)
+        debug("Step 1 : Answer or data needed (str): ", query1)
 
         let jsonString = query1.substring(query1.indexOf("[")).replace(/\n/g, "").trim();
         jsonString = jsonString.substring(0, jsonString.indexOf("]") + 1);
@@ -325,10 +284,7 @@ export class IterativeRAGAgent extends AgentRunner<LLM, IterativeRAGAgentStore> 
         }
         const query1Result = JSON.parse(jsonString);
 
-        console.log("Step 1 : Answer or data needed (json): ", query1Result)
-
-        // console.log("================================================")
-        // console.log("[RecursiveRAG] Data needed or answer ok ? ", query1Result.nextDataNeeded.length > 0 ? "No, will need to get data and rephrase query" : "Yes, answer is ready to be given")
+        debug("Step 1 : Answer or data needed (json): ", query1Result)
 
         if (query1Result.length > 0) {
 
@@ -337,21 +293,8 @@ export class IterativeRAGAgent extends AgentRunner<LLM, IterativeRAGAgentStore> 
             // const sourceData = await findData([query1Result[0]], modelData, embedModel, vectorStore, localFilesDir, openAI, reranker);
             const sourceData = await findDataInEmbeddings(query1Result, modelData, embedModel, vectorStore, openAI, reranker);
 
-            console.log("================================================")
-            console.log("[RecursiveRAG] Data found : ", sourceData.length);
-
-
-            // 3. Rephrase the query and integrate the data in it:
-            // const prompt2 = PROMPTS.REPHRASE_QUERY
-            //     .replace('_QUERY_', query)
-            //     .replace('_DATA_', JSON.stringify(sourceData));
-
-            // console.log("Rephrase prompt : ", prompt2);
-            // const prompt2Result = await llmCompletion(prompt2);
-            // const rephrasedQuery = prompt2Result.text
-
-            // console.log("================================================")
-            // console.log("[RecursiveRAG] Query rephrased : ", rephrasedQuery);
+            debug("================================================")
+            debug("[RecursiveRAG] Data found : ", sourceData.length);
 
             for (let data of sourceData) {
                 step.context.store.data.push(data)
@@ -363,13 +306,13 @@ export class IterativeRAGAgent extends AgentRunner<LLM, IterativeRAGAgentStore> 
                 .replace('_QUERY_', question)
                 .replace('_DATA_', step.context.store.data.map((item: string) => "- " + item).join("\n"))
 
-            console.log("Rephrase prompt : ", prompt2);
+            debug("Rephrase prompt : ", prompt2);
 
             // const queryRephrased = (await llmCompletion(prompt2, llm)).text
             const queryRephrased = (await modelCompletion(prompt2, model, openAI)).text
 
-            console.log("================================================")
-            console.log("[RecursiveRAG] Query rephrased : ", queryRephrased);
+            debug("================================================")
+            debug("[RecursiveRAG] Query rephrased : ", queryRephrased);
 
             // Update the rephrased query :
             step.context.store.rephrasedQuery = queryRephrased;
@@ -379,9 +322,9 @@ export class IterativeRAGAgent extends AgentRunner<LLM, IterativeRAGAgentStore> 
                 .replace('_QUERY_', question)
                 .replace('_DATA_', step.context.store.data.map((item: string) => "- " + item).join("\n"))
 
-            console.log("================================================")
-            console.log("Query: ", question)
-            console.log("Answer prompt : ", prompt3);
+            debug("================================================")
+            debug("Query: ", question)
+            debug("Answer prompt : ", prompt3);
 
             // const prompt3Result = await llmCompletion(prompt3, llm)
             const prompt3Result = await modelCompletion(prompt3, model, openAI);
@@ -396,7 +339,6 @@ export class IterativeRAGAgent extends AgentRunner<LLM, IterativeRAGAgentStore> 
                 });
             } else {
                 // Let's stop here with occurences, limit reached. Try to answer.
-
                 enqueueOutput({
                     taskStep: step,
                     output: { message: { role: 'assistant', content: prompt3Result.text }, raw: null },
@@ -406,9 +348,14 @@ export class IterativeRAGAgent extends AgentRunner<LLM, IterativeRAGAgentStore> 
 
         } else {
 
-            console.log("================================================")
-            console.log("[RecursiveRAG] Query cannot be answered ...");
+            debug("================================================")
+            debug("[RecursiveRAG] Query cannot be answered ...");
 
+            enqueueOutput({
+                taskStep: step,
+                output: { message: { role: 'assistant', content: "I can't perform this task." }, raw: null },
+                isLast: true,
+            });
         }
     };
 

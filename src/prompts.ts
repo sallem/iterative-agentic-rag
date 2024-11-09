@@ -1,41 +1,4 @@
 export const PROMPTS = {
-    IDENTIFY_DATA_GROUP: `
-Consider the following data :
-<data>_DATA_</data>
-
-And the following existing data groups :
-<existing_data_groups>_EXISTING_DATA_GROUPS_</existing_data_groups>
-
-Identify the data group that best match this data.
-
-Answer only in a valid JSON object :
-{
-    "existingDataGroup": "name of the existing data group that best match this data, empty if no existing data group match this data",
-    "newDataGroup": {
-        "name": "name of the new data group to create if no existing data group match this data",
-        "description": "description of the new data group to create if no existing data group match this data"
-    }
-}`,
-
-    EXTRACT_FACTS: `Extract facts from the following text : 
-
-<text>_NODE_TEXT_</text>
-
-Express facts in an active form in english with as many details as possible.
-Each fact must contain as much details as possible, each fact can contain multiple informations.
-A fact MUST mention context informations, like entity which it stands for, geographical informations, temporal informations, dates, etc.
-Do not use pronouns and replace them by the entity which it stands for.
-
-You have to find facts dealing with the following subject : 
-<subject>_DESCRIPTION_</subject>
-
-For example : 
-_SAMPLES_
-
-Return only valid JSON format.
-If no text provided or no fact is found, return [].
-
-Output format: ["fact1", "fact2", "fact3"] or [], no other than an array of strings.`,
 
     IDENTIFY_NEEDED_DATA: `
 I have a complex question that I need help breaking down into smaller, logical steps. Here’s the question:
@@ -84,5 +47,26 @@ Answer the following question based on the available data :
 <question>_QUERY_</question>
 
 If you cannot answer the question, return only "I don't know".
+`,
+    GET_FACTS: `
+If the following text :
+
+<text>
+_TEXT_
+</text>
+
+I am looking for informations about "_DATA_NEEDED_".
+
+Extract facts related to this information.
+Each result must be a sentence or assertion of that fact.
+Add context informations and details, like entity which it stands for, geographical informations, temporal informations, dates, etc.
+
+Do not make up informations, only use the informations provided in the text.
+To check the relevance of the fact, ask yourself if this fact could help answering the following question : "_DATA_NEEDED_".
+
+Answer with a JSON array of strings, for example:
+["string1", "string2", "string3"]
+
+Return empty array "[]" if no information is found or if the fact is not relevant to the question.
 `
 };
