@@ -43,7 +43,7 @@ async function embedFiles() {
                 }
 
                 // Use our custom text splitter
-                const nodes = await splitTextSafely(content, 500, 100);
+                const nodes = await splitTextSafely(content, 2000, 100);
                 console.log(`Split ${file} into ${nodes.length} chunks`);
 
                 for (let i = 0; i < nodes.length; i++) {

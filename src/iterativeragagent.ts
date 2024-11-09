@@ -34,8 +34,8 @@ async function modelCompletion(prompt: string, model: string | null, openAiModel
     const res = await openAiModel.chat.completions.create({
         model: model ?? "meta/llama-3.1-405b-instruct",
         messages: [{ "role": "user", "content": prompt }],
-        temperature: 0.2,
-        top_p: 0.7,
+        temperature: 0.1,
+        top_p: 0.01,
         max_tokens: 1024,
         stream: false,
     });
@@ -75,8 +75,8 @@ async function _findDataInEmbeddings(dataNeeded: string, modelData: string, embe
     for (const node of queryResult.nodes ?? []) {
 
         const prompt = PROMPTS.GET_FACTS
-            .replace('_TEXT_', node.toJSON().text)
-            .replace('_DATA_NEEDED_', dataNeeded);
+            .replace(/_TEXT_/g, node.toJSON().text)
+            .replace(/_DATA_NEEDED_/g, dataNeeded);
 
         debug("Prompt llm get facts : ", prompt);
         const facts = await modelCompletion(prompt, modelData, openAI)
@@ -259,8 +259,8 @@ export class IterativeRAGAgent extends AgentRunner<LLM, IterativeRAGAgentStore> 
 
         // 1. Can I answer this question with the available data ? Or Give me the data I need to answer this question.
         const prompt1 = PROMPTS.IDENTIFY_NEEDED_DATA
-            .replace('_QUESTION_', question)
-            .replace('_DATA_', step.context.store.data.length > 0 ? step.context.store.data.map((item: string) => "- " + item).join("\n") + "\n" : "- No data collected yet");
+            .replace(/_QUESTION_/g, question)
+            .replace(/_DATA_/g, step.context.store.data.length > 0 ? step.context.store.data.map((item: string) => "- " + item).join("\n") + "\n" : "- No data collected yet");
 
         debug("Initial step prompt : ", prompt1);
 
@@ -302,9 +302,9 @@ export class IterativeRAGAgent extends AgentRunner<LLM, IterativeRAGAgentStore> 
 
             // Rephrase :
             const prompt2 = PROMPTS.REPHRASE_QUERY
-                .replace('_INITIAL_QUERY_', initialQuestion)
-                .replace('_QUERY_', question)
-                .replace('_DATA_', step.context.store.data.map((item: string) => "- " + item).join("\n"))
+                .replace(/_INITIAL_QUERY_/g, initialQuestion)
+                .replace(/_QUERY_/g, question)
+                .replace(/_DATA_/g, step.context.store.data.map((item: string) => "- " + item).join("\n"))
 
             debug("Rephrase prompt : ", prompt2);
 
@@ -319,8 +319,8 @@ export class IterativeRAGAgent extends AgentRunner<LLM, IterativeRAGAgentStore> 
 
             // Try to answer :
             const prompt3 = PROMPTS.ANSWER_QUESTION
-                .replace('_QUERY_', question)
-                .replace('_DATA_', step.context.store.data.map((item: string) => "- " + item).join("\n"))
+                .replace(/_QUERY_/g, question)
+                .replace(/_DATA_/g, step.context.store.data.map((item: string) => "- " + item).join("\n"))
 
             debug("================================================")
             debug("Query: ", question)
