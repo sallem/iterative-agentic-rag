@@ -104,3 +104,13 @@ This work is just the beginning, all elements are Ok and the quality can be impr
 
 - Summaries support : Should be able to extract summaries from large chunks instead of "short facts". Would be important to handle qualitative searches on the corpus
 - Test more questions from the Google RAG benchmark dataset which is pure evil for RAGs 😅
+
+
+## 🥊 Challenges during development
+
+* Development loop to choose the good model depending on a prompt which itself evolves during the dev
+* Before adding the reranker into the agent, it gave a correct answers to the evaluation tests questions, but when the reranker has been added, it showed the quality of the prompt and the former method was not good. I then had to change lots of source code in order to improve the quality of the "iterative loop". Then the reranker has been added and the agent started to return more consistent results. I should have developped a complete process e2e ASAP in the coding process so that the reranker would have shown the problems earlier.
+* NVIDIA API showed some bugs on some models
+* LlamaIndex TS is less mature than Python library. The NVIDIA LLM/Reranker/Embeddings are not supported yet and I had to code some classes to use NVIDIA products with LlamaIndex. Not prefect but it was supplemntary development. I also used the react agent of LlamaIndex as a base for the project's agent, using the llamaindex agent template to run it.
+* Such a project needs to test a lot of approaches, embed a lot of documents, multiple times. The quantity of credits available on the API platform is not sufficient for a RAG development. I had to use a local embeddings service (Ollama) to keep some credits for the reasonning and reranking parts.
+* It was funny though ...
