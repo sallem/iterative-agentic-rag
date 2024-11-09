@@ -76,6 +76,7 @@ The development has been evaluated with the first queries and this project could
 * During development the NVIDIA API used to return 4XX errors on models. 404 error on embedding API, "no body" error on some models, etc. For these reasons, I used Ollama embeddings as they are locally running and their size and quality are smaller than NVIDIA's. The quality of the results should then be greater with NVIDIA API.
 * For NVIDIA contest, I keep most of the example with NVIDIA NIM API. But the Iterative Agentic RAG is meant to be usable with any embedding, LLM, Reranker supported by LlamaIndex 👀
 * It is about 13 days of development since I started this contest. The model evaluation, prompt engineering took a lot of time. I really improved my methodology : First make spikes/POCs in order to test different approaches. Make spikes to test prompts and models. Then go for the real product and make the end-to-end functions/classes. Then improve the prompts during testing. LLMs are great, but we need to learn how to talk to them 😅
+* Node cache is used to improve testing cost and speed. Node cache has been integrated into the `product` source code to prevent cost go *"to the moon"* during tests. Also a good pracitice to adopt while programming on LLMs.
 
 
 ## 📁 Files
