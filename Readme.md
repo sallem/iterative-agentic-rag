@@ -48,6 +48,15 @@ npx ts-node src/index.ts
 ```
 
 
+### Configuration & Credits
+
+For local/dev tests, we used Ollama embeddings with `nomic-embed-text` model.
+
+The agent is designed to work with any LlamaIndex Embedding compatible implementations.
+
+The source code in this repository is designed to work with NVIDIA NIM API.
+
+
 ## Demonstration product : The Writer Bot
 
 For a simple test, you can keep the documents downloaded by the `init` script and run the Writer Bot :

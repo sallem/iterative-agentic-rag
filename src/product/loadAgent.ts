@@ -21,10 +21,10 @@ let llm_get_data: OpenAI | null = null;
 if (CONFIG.llm.nvidiaNimApiKey) {
 
     // Use this to use Nvidia Embedding :
-    // embedModel = new NvidiaEmbedding({ model: CONFIG.embeddings.model, apiKey: CONFIG.llm.nvidiaNimApiKey });
+    embedModel = new NvidiaEmbedding({ model: CONFIG.embeddings.model, apiKey: CONFIG.llm.nvidiaNimApiKey });
 
     // For credits economy, use Ollama Embedding locally :
-    embedModel = new OllamaEmbedding({ model: CONFIG.embeddings.model });
+    // embedModel = new OllamaEmbedding({ model: CONFIG.embeddings.model });
 
     llm_reason = new OpenAI({
         apiKey: CONFIG.llm.nvidiaNimApiKey,

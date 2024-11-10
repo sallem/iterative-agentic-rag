@@ -8,8 +8,11 @@ import { splitTextSafely } from '../tools/utils';
 
 async function embedFiles() {
 
-    // Settings.embedModel = new NvidiaEmbedding({ model: CONFIG.embeddings.model, apiKey: CONFIG.llm.nvidiaNimApiKey ?? "" });
-    Settings.embedModel = new OllamaEmbedding({ model: CONFIG.embeddings.model });
+    // For NVIDIA embeddings, set the API key in the config file
+    Settings.embedModel = new NvidiaEmbedding({ model: CONFIG.embeddings.model, apiKey: CONFIG.llm.nvidiaNimApiKey ?? "" });
+
+    // For local embeddings, use Ollama : set the model in the config file
+    // Settings.embedModel = new OllamaEmbedding({ model: CONFIG.embeddings.model });
 
     const vectorStore = new QdrantVectorStore({
         url: CONFIG.vectorStore.qdrantUrl,

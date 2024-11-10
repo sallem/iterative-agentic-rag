@@ -17,10 +17,10 @@ let embedModel: BaseEmbedding | null = null;
 if (CONFIG.llm.nvidiaNimApiKey) {
 
     // Use this to use Nvidia Embedding :
-    // embedModel = new NvidiaEmbedding({ model: CONFIG.embeddings.model, apiKey: CONFIG.llm.nvidiaNimApiKey });
+    embedModel = new NvidiaEmbedding({ model: CONFIG.embeddings.model, apiKey: CONFIG.llm.nvidiaNimApiKey });
 
     // For credits economy, use Ollama Embedding locally :
-    embedModel = new OllamaEmbedding({ model: CONFIG.embeddings.model });
+    // embedModel = new OllamaEmbedding({ model: CONFIG.embeddings.model });
 }
 
 if (!embedModel || !CONFIG.llm.defaultModel || !CONFIG.llm.fastModel) {
